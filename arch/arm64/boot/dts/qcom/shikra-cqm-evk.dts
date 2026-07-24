@@ -287,6 +287,10 @@
 	remote-endpoint = <&usb_qmpphy_out>;
 };
 
+&audiocorecc {
+	status = "okay";
+};
+
 &remoteproc_cdsp {
 	firmware-name = "qcom/shikra/cdsp.mbn";
 
