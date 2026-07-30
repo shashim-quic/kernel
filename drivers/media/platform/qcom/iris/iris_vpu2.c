@@ -41,4 +41,5 @@ const struct vpu_ops iris_vpu2_ops = {
 	.set_hwmode = iris_vpu_set_hwmode,
 	.init_cb_devs = iris_vpu2_init_cb_devs,
 	.deinit_cb_devs = iris_vpu2_deinit_cb_devs,
+	.set_preset_registers = iris_vpu_set_preset_registers,
 };
