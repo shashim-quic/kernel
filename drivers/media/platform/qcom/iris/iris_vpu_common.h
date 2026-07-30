@@ -30,6 +30,7 @@ struct vpu_ops {
 	int (*check_core_load)(struct iris_inst *inst, bool mbpf);
 	u64 (*get_required_freq)(struct iris_inst *inst);
 	void (*set_preset_registers)(struct iris_core *core);
+	void (*interrupt_init)(struct iris_core *core);
 };
 
 int iris_vpu_boot_firmware(struct iris_core *core);
@@ -56,5 +57,6 @@ void iris_vpu_ahb_sync_reset_apv(struct iris_core *core);
 void iris_vpu_ahb_sync_reset_hardware(struct iris_core *core);
 
 void iris_vpu_set_preset_registers(struct iris_core *core);
+void iris_vpu_interrupt_init(struct iris_core *core);
 
 #endif
