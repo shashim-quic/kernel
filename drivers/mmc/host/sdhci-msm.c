@@ -1970,6 +1970,7 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 	}
 
 	mmc->caps2 |= MMC_CAP2_CRYPTO;
+	mmc->caps2 |= MMC_CAP2_CRYPTO_NO_REPROG;
 
 	err = sdhci_msm_ice_scale_clk(msm_host, ULONG_MAX, false);
 	if (err && err != -EOPNOTSUPP)
@@ -2069,6 +2070,12 @@ static int sdhci_msm_ice_prepare_key(struct blk_crypto_profile *profile,
 	struct sdhci_msm_host *msm_host = sdhci_msm_host_from_crypto_profile(profile);
 
 	return qcom_ice_prepare_key(msm_host->ice, lt_key, lt_key_size, eph_key);
+}
+
+static void sdhci_msm_ice_restore(struct sdhci_host *host)
+{
+	if (host->mmc->caps2 & MMC_CAP2_CRYPTO)
+		blk_crypto_reprogram_all_keys(&host->mmc->crypto_profile);
 }
 
 static void sdhci_msm_non_cqe_ice_init(struct sdhci_host *host)
@@ -2171,6 +2178,10 @@ sdhci_msm_ice_scale_clk(struct sdhci_msm_host *msm_host, unsigned long target_fr
 			bool round_ceil)
 {
 	return 0;
+}
+
+static inline void sdhci_msm_ice_restore(struct sdhci_host *host)
+{
 }
 #endif /* !CONFIG_MMC_CRYPTO */
 
@@ -3017,9 +3028,28 @@ static int sdhci_msm_runtime_resume(struct device *dev)
 	return ret;
 }
 
+static int sdhci_msm_restore(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	sdhci_msm_ice_restore(host);
+
+	return ret;
+}
+
 static const struct dev_pm_ops sdhci_msm_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	RUNTIME_PM_OPS(sdhci_msm_runtime_suspend, sdhci_msm_runtime_resume, NULL)
+	.suspend	= pm_sleep_ptr(pm_runtime_force_suspend),
+	.resume		= pm_sleep_ptr(pm_runtime_force_resume),
+	.freeze		= pm_sleep_ptr(pm_runtime_force_suspend),
+	.restore	= pm_sleep_ptr(sdhci_msm_restore),
+	.thaw		= pm_sleep_ptr(pm_runtime_force_resume),
+	.poweroff	= pm_sleep_ptr(pm_runtime_force_suspend),
 };
 
 static struct platform_driver sdhci_msm_driver = {
