@@ -242,6 +242,10 @@ int sdca_class_probe(struct sdw_slave *sdw,
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, sdca_class_cancel_boot_work, drv);
+	if (ret)
+		return ret;
+
 	queue_work(system_long_wq, &drv->boot_work);
 
 	return 0;
