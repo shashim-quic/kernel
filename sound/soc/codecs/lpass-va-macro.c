@@ -764,6 +764,16 @@ static int va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static bool is_amic_enabled(struct snd_soc_component *comp, int decimator)
+{
+	u16 adc_mux_reg;
+
+	adc_mux_reg = CDC_VA_INP_MUX_ADC_MUX0_CFG1 +
+		      VA_MACRO_ADC_MUX_CFG_OFFSET * decimator;
+
+	return snd_soc_component_read(comp, adc_mux_reg) & BIT(0);
+}
+
 static int va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
@@ -773,20 +783,26 @@ static int va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val;
 	u16 mic_sel_reg;
+	int decimator;
+	bool smic_mux;
 
 	val = ucontrol->value.enumerated.item[0];
 
 	switch (e->reg) {
 	case CDC_VA_INP_MUX_ADC_MUX0_CFG0:
+		decimator = 0;
 		mic_sel_reg = CDC_VA_TX0_TX_PATH_CFG0;
 		break;
 	case CDC_VA_INP_MUX_ADC_MUX1_CFG0:
+		decimator = 1;
 		mic_sel_reg = CDC_VA_TX1_TX_PATH_CFG0;
 		break;
 	case CDC_VA_INP_MUX_ADC_MUX2_CFG0:
+		decimator = 2;
 		mic_sel_reg = CDC_VA_TX2_TX_PATH_CFG0;
 		break;
 	case CDC_VA_INP_MUX_ADC_MUX3_CFG0:
+		decimator = 3;
 		mic_sel_reg = CDC_VA_TX3_TX_PATH_CFG0;
 		break;
 	default:
@@ -795,16 +811,24 @@ static int va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	}
 
-	if (val != 0) {
-		if (strstr(widget->name, "SMIC"))
-			snd_soc_component_update_bits(component, mic_sel_reg,
-						      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
-						      CDC_VA_TX_PATH_ADC_DMIC_SEL_ADC);
-		else
-			snd_soc_component_update_bits(component, mic_sel_reg,
-						      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
-						      CDC_VA_TX_PATH_ADC_DMIC_SEL_DMIC);
-	}
+	/*
+	 * SMIC enums use shift 0 (lower nibble of CFG0), DMIC enums use
+	 * shift 4 (upper nibble of CFG0). Use e->shift_l to distinguish them
+	 * without relying on widget name comparisons.
+	 */
+	smic_mux = (e->shift_l == 0);
+
+	/*
+	 * Both muxes feed the same decimator and share ADC_DMIC_SEL, so only
+	 * the one the decimator is routed through may program it. A write to
+	 * the mux that is not part of the active path would otherwise switch
+	 * the input domain of a running capture.
+	 */
+	if (val != 0 && smic_mux == is_amic_enabled(component, decimator))
+		snd_soc_component_update_bits(component, mic_sel_reg,
+					      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
+					      smic_mux ? CDC_VA_TX_PATH_ADC_DMIC_SEL_ADC :
+							 CDC_VA_TX_PATH_ADC_DMIC_SEL_DMIC);
 
 	return snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
 }
@@ -985,16 +1009,6 @@ static int va_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static bool is_amic_enabled(struct snd_soc_component *comp, int decimator)
-{
-	u16 adc_mux_reg;
-
-	adc_mux_reg = CDC_VA_INP_MUX_ADC_MUX0_CFG1 +
-		      VA_MACRO_ADC_MUX_CFG_OFFSET * decimator;
-
-	return snd_soc_component_read(comp, adc_mux_reg) & BIT(0);
-}
-
 static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			       struct snd_kcontrol *kcontrol, int event)
 {
@@ -1020,6 +1034,18 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		/*
+		 * ADC_DMIC_SEL is shared by the DMIC and the SoundWire mic
+		 * mux, so its value depends on the order in which userspace
+		 * restores the two controls. Program it from the resolved
+		 * mux state of this decimator, which is what selects the
+		 * input domain.
+		 */
+		snd_soc_component_update_bits(comp, dec_cfg_reg,
+					      CDC_VA_TX_PATH_ADC_DMIC_SEL_MASK,
+					      is_amic_enabled(comp, decimator) ?
+					      CDC_VA_TX_PATH_ADC_DMIC_SEL_ADC :
+					      CDC_VA_TX_PATH_ADC_DMIC_SEL_DMIC);
 		snd_soc_component_update_bits(comp,
 			dec_cfg_reg, CDC_VA_ADC_MODE_MASK,
 			va->dec_mode[decimator] << CDC_VA_ADC_MODE_SHIFT);
@@ -1034,6 +1060,11 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(comp, tx_vol_ctl_reg,
 					      CDC_VA_TX_PATH_CLK_EN_MASK,
 					      CDC_VA_TX_PATH_CLK_EN);
+		/*
+		 * Only the HPF zero gate assertion is specific to the DMIC
+		 * path; the cutoff programming and the gate release below
+		 * apply to both input domains.
+		 */
 		if (!is_amic_enabled(comp, decimator))
 			snd_soc_component_update_bits(comp, hpf_gate_reg,
 						      CDC_VA_TX_HPF_ZERO_GATE_MASK,
@@ -1057,10 +1088,9 @@ static int va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 			 */
 			usleep_range(1000, 1010);
 
-			if (!is_amic_enabled(comp, decimator))
-				snd_soc_component_update_bits(comp, hpf_gate_reg,
-							      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
-							      0x0);
+			snd_soc_component_update_bits(comp, hpf_gate_reg,
+						      CDC_VA_TX_HPF_CUTOFF_FREQ_CHANGE_MASK,
+						      0x0);
 		}
 
 		usleep_range(1000, 1010);
@@ -1263,8 +1293,8 @@ static const char * const adc_mux_text[] = {
 };
 
 static const char * const smic_mux_text[] = {
-	"ZERO", "SWR_MIC0", "SWR_MIC1", "SWR_MIC2", "SWR_MIC3",
-	"SWR_MIC4", "SWR_MIC5", "SWR_MIC6", "SWR_MIC7"
+	"ZERO", "ADC0", "ADC1", "ADC2", "ADC3", "SWR_MIC0", "SWR_MIC1",
+	"SWR_MIC2", "SWR_MIC3", "SWR_MIC4", "SWR_MIC5", "SWR_MIC6", "SWR_MIC7"
 };
 
 static SOC_ENUM_SINGLE_DECL(va_smic0_enum, CDC_VA_INP_MUX_ADC_MUX0_CFG0,
@@ -1489,14 +1519,6 @@ static const struct snd_soc_dapm_widget va_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("VA SWR_MIC5"),
 	SND_SOC_DAPM_INPUT("VA SWR_MIC6"),
 	SND_SOC_DAPM_INPUT("VA SWR_MIC7"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT0"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT1"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT2"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT3"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT4"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT5"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT6"),
-	SND_SOC_DAPM_INPUT("VA SWR_INPUT7"),
 
 	SND_SOC_DAPM_MUX_E("VA DEC0 MUX", SND_SOC_NOPM, VA_MACRO_DEC0, 0,
 			   &va_dec0_mux, va_macro_enable_dec,
@@ -1588,44 +1610,60 @@ static const struct snd_soc_dapm_route va_audio_map[] = {
 	{"VA DMIC MUX3", "DMIC7", "VA DMIC7"},
 
 	{"VA DEC0 MUX", "SWR_MIC", "VA SMIC MUX0"},
-	{"VA SMIC MUX0", "SWR_MIC0", "VA SWR_INPUT0"},
-	{"VA SMIC MUX0", "SWR_MIC1", "VA SWR_INPUT1"},
-	{"VA SMIC MUX0", "SWR_MIC2", "VA SWR_INPUT2"},
-	{"VA SMIC MUX0", "SWR_MIC3", "VA SWR_INPUT3"},
-	{"VA SMIC MUX0", "SWR_MIC4", "VA SWR_INPUT4"},
-	{"VA SMIC MUX0", "SWR_MIC5", "VA SWR_INPUT5"},
-	{"VA SMIC MUX0", "SWR_MIC6", "VA SWR_INPUT6"},
-	{"VA SMIC MUX0", "SWR_MIC7", "VA SWR_INPUT7"},
+	{"VA SMIC MUX0", "ADC0", "VA SWR_ADC0"},
+	{"VA SMIC MUX0", "ADC1", "VA SWR_ADC1"},
+	{"VA SMIC MUX0", "ADC2", "VA SWR_ADC2"},
+	{"VA SMIC MUX0", "ADC3", "VA SWR_ADC3"},
+	{"VA SMIC MUX0", "SWR_MIC0", "VA SWR_MIC0"},
+	{"VA SMIC MUX0", "SWR_MIC1", "VA SWR_MIC1"},
+	{"VA SMIC MUX0", "SWR_MIC2", "VA SWR_MIC2"},
+	{"VA SMIC MUX0", "SWR_MIC3", "VA SWR_MIC3"},
+	{"VA SMIC MUX0", "SWR_MIC4", "VA SWR_MIC4"},
+	{"VA SMIC MUX0", "SWR_MIC5", "VA SWR_MIC5"},
+	{"VA SMIC MUX0", "SWR_MIC6", "VA SWR_MIC6"},
+	{"VA SMIC MUX0", "SWR_MIC7", "VA SWR_MIC7"},
 
 	{"VA DEC1 MUX", "SWR_MIC", "VA SMIC MUX1"},
-	{"VA SMIC MUX1", "SWR_MIC0", "VA SWR_INPUT0"},
-	{"VA SMIC MUX1", "SWR_MIC1", "VA SWR_INPUT1"},
-	{"VA SMIC MUX1", "SWR_MIC2", "VA SWR_INPUT2"},
-	{"VA SMIC MUX1", "SWR_MIC3", "VA SWR_INPUT3"},
-	{"VA SMIC MUX1", "SWR_MIC4", "VA SWR_INPUT4"},
-	{"VA SMIC MUX1", "SWR_MIC5", "VA SWR_INPUT5"},
-	{"VA SMIC MUX1", "SWR_MIC6", "VA SWR_INPUT6"},
-	{"VA SMIC MUX1", "SWR_MIC7", "VA SWR_INPUT7"},
+	{"VA SMIC MUX1", "ADC0", "VA SWR_ADC0"},
+	{"VA SMIC MUX1", "ADC1", "VA SWR_ADC1"},
+	{"VA SMIC MUX1", "ADC2", "VA SWR_ADC2"},
+	{"VA SMIC MUX1", "ADC3", "VA SWR_ADC3"},
+	{"VA SMIC MUX1", "SWR_MIC0", "VA SWR_MIC0"},
+	{"VA SMIC MUX1", "SWR_MIC1", "VA SWR_MIC1"},
+	{"VA SMIC MUX1", "SWR_MIC2", "VA SWR_MIC2"},
+	{"VA SMIC MUX1", "SWR_MIC3", "VA SWR_MIC3"},
+	{"VA SMIC MUX1", "SWR_MIC4", "VA SWR_MIC4"},
+	{"VA SMIC MUX1", "SWR_MIC5", "VA SWR_MIC5"},
+	{"VA SMIC MUX1", "SWR_MIC6", "VA SWR_MIC6"},
+	{"VA SMIC MUX1", "SWR_MIC7", "VA SWR_MIC7"},
 
 	{"VA DEC2 MUX", "SWR_MIC", "VA SMIC MUX2"},
-	{"VA SMIC MUX2", "SWR_MIC0", "VA SWR_INPUT0"},
-	{"VA SMIC MUX2", "SWR_MIC1", "VA SWR_INPUT1"},
-	{"VA SMIC MUX2", "SWR_MIC2", "VA SWR_INPUT2"},
-	{"VA SMIC MUX2", "SWR_MIC3", "VA SWR_INPUT3"},
-	{"VA SMIC MUX2", "SWR_MIC4", "VA SWR_INPUT4"},
-	{"VA SMIC MUX2", "SWR_MIC5", "VA SWR_INPUT5"},
-	{"VA SMIC MUX2", "SWR_MIC6", "VA SWR_INPUT6"},
-	{"VA SMIC MUX2", "SWR_MIC7", "VA SWR_INPUT7"},
+	{"VA SMIC MUX2", "ADC0", "VA SWR_ADC0"},
+	{"VA SMIC MUX2", "ADC1", "VA SWR_ADC1"},
+	{"VA SMIC MUX2", "ADC2", "VA SWR_ADC2"},
+	{"VA SMIC MUX2", "ADC3", "VA SWR_ADC3"},
+	{"VA SMIC MUX2", "SWR_MIC0", "VA SWR_MIC0"},
+	{"VA SMIC MUX2", "SWR_MIC1", "VA SWR_MIC1"},
+	{"VA SMIC MUX2", "SWR_MIC2", "VA SWR_MIC2"},
+	{"VA SMIC MUX2", "SWR_MIC3", "VA SWR_MIC3"},
+	{"VA SMIC MUX2", "SWR_MIC4", "VA SWR_MIC4"},
+	{"VA SMIC MUX2", "SWR_MIC5", "VA SWR_MIC5"},
+	{"VA SMIC MUX2", "SWR_MIC6", "VA SWR_MIC6"},
+	{"VA SMIC MUX2", "SWR_MIC7", "VA SWR_MIC7"},
 
 	{"VA DEC3 MUX", "SWR_MIC", "VA SMIC MUX3"},
-	{"VA SMIC MUX3", "SWR_MIC0", "VA SWR_INPUT0"},
-	{"VA SMIC MUX3", "SWR_MIC1", "VA SWR_INPUT1"},
-	{"VA SMIC MUX3", "SWR_MIC2", "VA SWR_INPUT2"},
-	{"VA SMIC MUX3", "SWR_MIC3", "VA SWR_INPUT3"},
-	{"VA SMIC MUX3", "SWR_MIC4", "VA SWR_INPUT4"},
-	{"VA SMIC MUX3", "SWR_MIC5", "VA SWR_INPUT5"},
-	{"VA SMIC MUX3", "SWR_MIC6", "VA SWR_INPUT6"},
-	{"VA SMIC MUX3", "SWR_MIC7", "VA SWR_INPUT7"},
+	{"VA SMIC MUX3", "ADC0", "VA SWR_ADC0"},
+	{"VA SMIC MUX3", "ADC1", "VA SWR_ADC1"},
+	{"VA SMIC MUX3", "ADC2", "VA SWR_ADC2"},
+	{"VA SMIC MUX3", "ADC3", "VA SWR_ADC3"},
+	{"VA SMIC MUX3", "SWR_MIC0", "VA SWR_MIC0"},
+	{"VA SMIC MUX3", "SWR_MIC1", "VA SWR_MIC1"},
+	{"VA SMIC MUX3", "SWR_MIC2", "VA SWR_MIC2"},
+	{"VA SMIC MUX3", "SWR_MIC3", "VA SWR_MIC3"},
+	{"VA SMIC MUX3", "SWR_MIC4", "VA SWR_MIC4"},
+	{"VA SMIC MUX3", "SWR_MIC5", "VA SWR_MIC5"},
+	{"VA SMIC MUX3", "SWR_MIC6", "VA SWR_MIC6"},
+	{"VA SMIC MUX3", "SWR_MIC7", "VA SWR_MIC7"},
 
 	{ "VA DMIC0", NULL, "DMIC0 Pin" },
 	{ "VA DMIC1", NULL, "DMIC1 Pin" },
