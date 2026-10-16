@@ -12,7 +12,6 @@
 #include <linux/reset.h>
 #include <linux/soc/qcom/ubwc.h>
 
-#include "iris_debugfs.h"
 #include "iris_core.h"
 #include "iris_ctrls.h"
 #include "iris_vidc.h"
@@ -360,7 +359,8 @@ static void iris_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&core->v4l2_dev);
 
 	iris_deinit_cb_devs(core);
-	iris_debugfs_deinit(core);
+
+	iris_unreserve_iova_region(core->dev, core->iova_state);
 
 	mutex_destroy(&core->lock);
 }
@@ -385,7 +385,6 @@ static int iris_probe(struct platform_device *pdev)
 	if (!core)
 		return -ENOMEM;
 	core->dev = dev;
-	core->fw_debug = IRIS_FW_DEBUG_DEFAULT;
 	core->hw_response_timeout = HW_RESPONSE_TIMEOUT_VALUE;
 
 	core->state = IRIS_CORE_DEINIT;
@@ -460,8 +459,6 @@ static int iris_probe(struct platform_device *pdev)
 	ret = devm_pm_runtime_enable(core->dev);
 	if (ret)
 		goto err_vdev_unreg_enc;
-
-	iris_debugfs_init(core);
 
 	return 0;
 
