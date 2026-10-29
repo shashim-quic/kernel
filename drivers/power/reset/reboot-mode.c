@@ -20,7 +20,8 @@
 
 struct mode_info {
 	const char *mode;
-	u64 magic;
+	u32 magic[3];
+	u32 count;
 	struct list_head list;
 };
 
@@ -72,7 +73,7 @@ static const struct class reboot_mode_class = {
 	.dev_groups = reboot_mode_groups,
 };
 
-static u64 get_reboot_mode_magic(struct reboot_mode_driver *reboot, const char *cmd)
+static struct mode_info *get_reboot_mode_info(struct reboot_mode_driver *reboot, const char *cmd)
 {
 	const char *normal = "normal";
 	struct mode_info *info;
@@ -83,11 +84,11 @@ static u64 get_reboot_mode_magic(struct reboot_mode_driver *reboot, const char *
 
 	list_for_each_entry(info, &reboot->head, list)
 		if (!strcmp(info->mode, cmd))
-			return info->magic;
+			return info;
 
 	/* try to match again, replacing characters impossible in DT */
 	if (strscpy(cmd_, cmd, sizeof(cmd_)) == -E2BIG)
-		return 0;
+		return NULL;
 
 	strreplace(cmd_, ' ', '-');
 	strreplace(cmd_, ',', '-');
@@ -95,21 +96,25 @@ static u64 get_reboot_mode_magic(struct reboot_mode_driver *reboot, const char *
 
 	list_for_each_entry(info, &reboot->head, list)
 		if (!strcmp(info->mode, cmd_))
-			return info->magic;
+			return info;
 
-	return 0;
+	return NULL;
 }
 
 static int reboot_mode_notify(struct notifier_block *this,
 			      unsigned long mode, void *cmd)
 {
 	struct reboot_mode_driver *reboot;
-	u64 magic;
+	struct mode_info *info;
 
 	reboot = container_of(this, struct reboot_mode_driver, reboot_notifier);
-	magic = get_reboot_mode_magic(reboot, cmd);
-	if (magic)
-		reboot->write(reboot, magic);
+	info = get_reboot_mode_info(reboot, cmd);
+	if (info && info->count) {
+		if (reboot->write_array)
+			reboot->write_array(reboot, info->magic, info->count);
+		else if (reboot->write && info->magic[0])
+			reboot->write(reboot, info->magic[0]);
+	}
 
 	return NOTIFY_DONE;
 }
@@ -119,15 +124,7 @@ static int reboot_mode_create_device(struct reboot_mode_driver *reboot)
 	struct reboot_mode_sysfs_data *priv;
 	struct mode_info *sysfs_info;
 	struct mode_info *info;
-	const char *dev_name;
 	int ret;
-
-	dev_name = reboot->name;
-	if (!dev_name) {
-		if (!reboot->dev || !reboot->dev->driver)
-			return -EINVAL;
-		dev_name = reboot->dev->driver->name;
-	}
 
 	priv = kzalloc_obj(*priv);
 	if (!priv)
@@ -154,7 +151,7 @@ static int reboot_mode_create_device(struct reboot_mode_driver *reboot)
 
 	priv->reboot_mode_device = device_create(&reboot_mode_class, NULL, 0,
 						 (void *)priv, "%s",
-						 dev_name);
+						 reboot->dev->driver->name);
 	if (IS_ERR(priv->reboot_mode_device)) {
 		ret = PTR_ERR(priv->reboot_mode_device);
 		goto error;
@@ -171,40 +168,35 @@ error:
 /**
  * reboot_mode_register - register a reboot mode driver
  * @reboot: reboot mode driver
- * @fwnode: Firmware node with reboot-mode configuration
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int reboot_mode_register(struct reboot_mode_driver *reboot, struct fwnode_handle *fwnode)
+int reboot_mode_register(struct reboot_mode_driver *reboot)
 {
 	struct mode_info *info = NULL;
-	struct device_node *np;
 	struct property *prop;
+	struct device_node *np = reboot->dev->of_node;
 	size_t len = strlen(PREFIX);
-	u32 magic_arg1;
-	u32 magic_arg2;
+	u32 magic[3];
+	int count;
 	int ret;
-
-	if (!fwnode)
-		return -EINVAL;
-
-	np = to_of_node(fwnode);
-	if (!np)
-		return -EINVAL;
 
 	INIT_LIST_HEAD(&reboot->head);
 
 	for_each_property_of_node(np, prop) {
+		memset(magic, 0, sizeof(magic));
+
 		if (strncmp(prop->name, PREFIX, len))
 			continue;
 
-		if (of_property_read_u32(np, prop->name, &magic_arg1)) {
-			pr_err("reboot mode without magic number\n");
+		count = device_property_count_u32(reboot->dev, prop->name);
+
+		if (count <= 0 || count > ARRAY_SIZE(magic) ||
+		    device_property_read_u32_array(reboot->dev, prop->name, magic, count)) {
+			dev_dbg(reboot->dev, "reboot mode %s without magic number\n",
+				prop->name);
 			continue;
 		}
-
-		if (of_property_read_u32_index(np, prop->name, 1, &magic_arg2))
-			magic_arg2 = 0;
 
 		info = kzalloc_obj(*info);
 		if (!info) {
@@ -212,8 +204,14 @@ int reboot_mode_register(struct reboot_mode_driver *reboot, struct fwnode_handle
 			goto error;
 		}
 
-		info->magic = magic_arg2;
-		info->magic = (info->magic << 32) | magic_arg1;
+		if (!memchr_inv(magic, 0, count * sizeof(u32))) {
+			dev_dbg(reboot->dev, "reboot mode %s with zero magic values\n",
+				prop->name);
+			info->count = 0;
+		} else {
+			memcpy(info->magic, magic, count * sizeof(u32));
+			info->count = count;
+		}
 
 		info->mode = kstrdup_const(prop->name + len, GFP_KERNEL);
 		if (!info->mode) {
@@ -261,16 +259,8 @@ static inline void reboot_mode_unregister_device(struct reboot_mode_driver *rebo
 {
 	struct reboot_mode_sysfs_data *priv;
 	struct device *reboot_mode_device;
-	const char *dev_name;
 
-	dev_name = reboot->name;
-	if (!dev_name) {
-		if (!reboot->dev || !reboot->dev->driver)
-			return;
-		dev_name = reboot->dev->driver->name;
-	}
-
-	reboot_mode_device = class_find_device(&reboot_mode_class, NULL, dev_name,
+	reboot_mode_device = class_find_device(&reboot_mode_class, NULL, reboot->dev->driver->name,
 					       reboot_mode_match_by_name);
 
 	if (!reboot_mode_device)
@@ -326,14 +316,11 @@ int devm_reboot_mode_register(struct device *dev,
 	struct reboot_mode_driver **dr;
 	int rc;
 
-	if (!reboot->dev || !reboot->dev->of_node)
-		return -EINVAL;
-
 	dr = devres_alloc(devm_reboot_mode_release, sizeof(*dr), GFP_KERNEL);
 	if (!dr)
 		return -ENOMEM;
 
-	rc = reboot_mode_register(reboot, of_fwnode_handle(reboot->dev->of_node));
+	rc = reboot_mode_register(reboot);
 	if (rc) {
 		devres_free(dr);
 		return rc;

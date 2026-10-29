@@ -17,18 +17,13 @@ struct nvmem_reboot_mode {
 	struct nvmem_cell *cell;
 };
 
-static int nvmem_reboot_mode_write(struct reboot_mode_driver *reboot, u64 magic)
+static int nvmem_reboot_mode_write(struct reboot_mode_driver *reboot,
+				    unsigned int magic)
 {
 	struct nvmem_reboot_mode *nvmem_rbm;
 	size_t buf_len;
-	u32 magic_32;
 	void *buf;
 	int ret;
-
-	if (magic > U32_MAX)
-		return -EINVAL;
-
-	magic_32 = magic;
 
 	nvmem_rbm = container_of(reboot, struct nvmem_reboot_mode, reboot);
 
@@ -40,7 +35,7 @@ static int nvmem_reboot_mode_write(struct reboot_mode_driver *reboot, u64 magic)
 	if (buf_len > sizeof(magic))
 		return -EINVAL;
 
-	ret = nvmem_cell_write(nvmem_rbm->cell, &magic_32, sizeof(magic_32));
+	ret = nvmem_cell_write(nvmem_rbm->cell, &magic, buf_len);
 	if (ret < 0)
 		dev_err(reboot->dev, "update reboot mode bits failed\n");
 
