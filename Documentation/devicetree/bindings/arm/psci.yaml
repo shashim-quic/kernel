@@ -107,16 +107,29 @@ properties:
       mode-normal: false
     patternProperties:
       "^mode-.*$":
-        minItems: 1
-        maxItems: 2
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 2
+        items:
+          - description: arg1 (vendor-specific SYSTEM_RESET2 reset_type)
+            minimum: 0x80000000
+          - description: arg2 (cookie_lo in 2-cell form, cookie_hi in 3-cell form)
+          - description: arg3 (cookie_lo in 3-cell form)
         description: |
-          Describes a vendor-specific reset type. The string after "mode-"
-          maps a reboot mode to the parameters in the PSCI SYSTEM_RESET2 call.
+          Describes a PSCI SYSTEM_RESET2 vendor-specific reset type. The string
+          after "mode-" maps a reboot mode to a vendor-specific reset.
 
-          Parameters are named mode-xxx = <type[, cookie]>, where xxx is the
-          name of the magic reboot mode, type corresponds to the reset_type
-          and the values should be provided as per the PSCI SYSTEM_RESET2
-          specs. The cookie value is optional and defaulted to zero.
+          A vendor-specific reset takes two arguments, a 32-bit reset_type and a
+          64-bit cookie. The arguments are encoded as up to three 32-bit cells.
+          Each mode property is encoded as mode-xxx = <arg1 arg2[, arg3]>,
+          where:
+
+            - arg1 is reset_type and must be >= 0x80000000.
+            - In 2-cell form, arg2 is lower 32 bits of cookie.
+            - In 3-cell form, arg2 is high 32 bits of cookie
+              and arg3 is low 32 bits of cookie.
+
+          All values should be provided as per the PSCI SYSTEM_RESET2
+          specification.
 
 patternProperties:
   "^power-domain-":
@@ -298,8 +311,9 @@ examples:
       method = "smc";
 
       reboot-mode {
-        mode-edl = <0x80000000 1>;
-        mode-bootloader = <0x80010001 2>;
+        mode-edl = <0x80000000 0x00000001>;
+        mode-bootloader = <0x80010001 0x00000002>;
+        mode-vendor = <0x80000000 0x00000001 0x00000002>;
       };
     };
 ...
