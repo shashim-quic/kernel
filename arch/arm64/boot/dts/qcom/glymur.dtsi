@@ -5963,6 +5963,7 @@
 			snps,dis_enblslpm_quirk;
 			snps,resume-hs-terminations;
 
+			mode-switch;
 			usb-role-switch;
 			wakeup-source;
 
@@ -6040,6 +6041,7 @@
 			snps,dis_enblslpm_quirk;
 			snps,resume-hs-terminations;
 
+			mode-switch;
 			usb-role-switch;
 			wakeup-source;
 
@@ -6117,6 +6119,7 @@
 			snps,dis_enblslpm_quirk;
 			snps,resume-hs-terminations;
 
+			mode-switch;
 			usb-role-switch;
 			wakeup-source;
 
