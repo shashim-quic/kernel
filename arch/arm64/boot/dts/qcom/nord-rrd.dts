@@ -762,6 +762,22 @@
 	status = "okay";
 };
 
+&nsp2_funnel {
+	status = "disabled";
+};
+
+&nsp2_tpda {
+	status = "disabled";
+};
+
+&nsp3_funnel {
+	status = "disabled";
+};
+
+&nsp3_tpda {
+	status = "disabled";
+};
+
 &pcie0 {
 	status = "okay";
 };
@@ -932,14 +948,14 @@
 	firmware-name = "qcom/nord/cdsp.mbn",
 			"qcom/nord/cdsp_dtb.mbn";
 
-	status = "okay";
+	status = "disabled";
 };
 
 &remoteproc_cdsp3 {
 	firmware-name = "qcom/nord/cdsp.mbn",
 			"qcom/nord/cdsp_dtb.mbn";
 
-	status = "okay";
+	status = "disabled";
 };
 
 &spi16 {
