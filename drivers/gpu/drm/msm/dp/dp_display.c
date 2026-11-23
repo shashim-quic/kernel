@@ -833,7 +833,7 @@ static int msm_dp_display_disable(struct msm_dp_display_private *dp,
 
 	msm_dp_panel_disable_vsc_sdp(msm_dp_panel);
 
-	msm_dp_ctrl_off_pixel_clk(dp->ctrl, msm_dp_panel->stream_id);
+	msm_dp_ctrl_off_pixel_clk(dp->ctrl);
 
 	msm_dp_display->active_stream_cnt--;
 
