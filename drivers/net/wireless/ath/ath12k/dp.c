@@ -439,7 +439,6 @@ static void ath12k_dp_srng_common_cleanup(struct ath12k_base *ab)
 
 static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 {
-	const struct ath12k_dp_profile_params *dp_params = &ab->profile_param->dp_params;
 	struct ath12k_dp *dp = ath12k_ab_to_dp(ab);
 	const struct ath12k_hal_tcl_to_wbm_rbm_map *map;
 	struct hal_srng *srng;
@@ -470,7 +469,7 @@ static int ath12k_dp_srng_common_setup(struct ath12k_base *ab)
 
 		ret = ath12k_dp_srng_setup(ab, &dp->tx_ring[i].tcl_comp_ring,
 					   HAL_WBM2SW_RELEASE, tx_comp_ring_num, 0,
-					   ath12k_dp_tx_comp_ring_size(dp_params));
+					   DP_TX_COMP_RING_SIZE(ab));
 		if (ret) {
 			ath12k_warn(ab, "failed to set up tcl_comp ring (%d) :%d\n",
 				    tx_comp_ring_num, ret);
@@ -1466,7 +1465,6 @@ static int ath12k_dp_reoq_lut_setup(struct ath12k_base *ab)
 
 static int ath12k_dp_setup(struct ath12k_base *ab)
 {
-	const struct ath12k_dp_profile_params *dp_params;
 	struct ath12k_dp *dp;
 	struct hal_srng *srng = NULL;
 	size_t size = 0;
@@ -1476,7 +1474,6 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 
 	dp = ath12k_ab_to_dp(ab);
 	dp->ab = ab;
-	dp_params = &ab->profile_param->dp_params;
 
 	INIT_LIST_HEAD(&dp->reo_cmd_list);
 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
@@ -1531,7 +1528,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 		goto fail_dp_bank_profiles_cleanup;
 
 	size = ab->hal.hal_wbm_release_ring_tx_size *
-	       ath12k_dp_tx_comp_ring_size(dp_params);
+	       DP_TX_COMP_RING_SIZE(ab);
 
 	ret = ath12k_dp_reoq_lut_setup(ab);
 	if (ret) {
@@ -1543,8 +1540,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 		dp->tx_ring[i].tcl_data_ring_id = i;
 
 		dp->tx_ring[i].tx_status_head = 0;
-		dp->tx_ring[i].tx_status_tail =
-			ath12k_dp_tx_comp_ring_size(dp_params) - 1;
+		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE(ab) - 1;
 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
 		if (!dp->tx_ring[i].tx_status) {
 			ret = -ENOMEM;
