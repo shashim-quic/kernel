@@ -380,21 +380,6 @@ static void pwrseq_pcie_m2_remove_serdev(struct pwrseq_pcie_m2_ctx *ctx,
 	mutex_unlock(&ctx->list_lock);
 }
 
-static bool pwrseq_pcie_m2_pci_parent_matches(struct pci_dev *pdev,
-					       struct device_node *pci_parent)
-{
-	struct device *dev = pdev->dev.parent;
-
-	while (dev) {
-		if (dev->of_node == pci_parent)
-			return true;
-		if (!dev_is_pci(dev))
-			break;
-		dev = dev->parent;
-	}
-	return false;
-}
-
 static int pwrseq_pcie_m2_notify(struct notifier_block *nb, unsigned long action,
 			      void *data)
 {
@@ -409,7 +394,7 @@ static int pwrseq_pcie_m2_notify(struct notifier_block *nb, unsigned long action
 	 */
 	struct device_node *pci_parent __free(device_node) =
 			of_graph_get_remote_node(dev_of_node(ctx->dev), 0, 0);
-	if (!pci_parent || !pwrseq_pcie_m2_pci_parent_matches(pdev, pci_parent))
+	if (!pci_parent || (pci_parent != pdev->dev.parent->of_node))
 		return NOTIFY_DONE;
 
 	switch (action) {
@@ -495,7 +480,7 @@ static int pwrseq_pcie_m2_create_serdev(struct pwrseq_pcie_m2_ctx *ctx)
 
 	/* Create serdev for existing PCI devices if required */
 	for_each_pci_dev(pdev) {
-		if (!pwrseq_pcie_m2_pci_parent_matches(pdev, pci_parent))
+		if (!pdev->dev.parent || pci_parent != pdev->dev.parent->of_node)
 			continue;
 
 		if (pci_match_id(pwrseq_m2_pci_ids, pdev)) {
