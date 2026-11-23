@@ -2598,6 +2598,7 @@ int msm_dp_ctrl_on_link(struct msm_dp_ctrl *msm_dp_ctrl,
 		return rc;
 
 	if (rc == 0) {  /* link train successfully */
+	msm_dp_ctrl_config_ctrl_link(ctrl, panel);
 		/*
 		 * do not stop train pattern here
 		 * stop link training at on_stream
