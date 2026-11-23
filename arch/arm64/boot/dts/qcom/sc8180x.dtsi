@@ -1779,11 +1779,13 @@
 					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_PCIE_0 0>;
 			interconnect-names = "pcie-mem", "cpu-pcie";
 
+			phys = <&pcie0_phy>;
+			phy-names = "pciephy";
 			dma-coherent;
 
 			status = "disabled";
 
-			pcie0_port0: pcie@0 {
+			pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
@@ -1791,8 +1793,6 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
-
-				phys = <&pcie0_phy>;
 			};
 		};
 
@@ -1898,11 +1898,13 @@
 					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_PCIE_3 0>;
 			interconnect-names = "pcie-mem", "cpu-pcie";
 
+			phys = <&pcie3_phy>;
+			phy-names = "pciephy";
 			dma-coherent;
 
 			status = "disabled";
 
-			pcie3_port0: pcie@0 {
+			pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
@@ -1910,8 +1912,6 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
-
-				phys = <&pcie3_phy>;
 			};
 		};
 
@@ -2018,11 +2018,13 @@
 					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_PCIE_1 0>;
 			interconnect-names = "pcie-mem", "cpu-pcie";
 
+			phys = <&pcie1_phy>;
+			phy-names = "pciephy";
 			dma-coherent;
 
 			status = "disabled";
 
-			pcie1_port0: pcie@0 {
+			pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
@@ -2030,8 +2032,6 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
-
-				phys = <&pcie1_phy>;
 			};
 		};
 
@@ -2138,11 +2138,13 @@
 					<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_PCIE_2 0>;
 			interconnect-names = "pcie-mem", "cpu-pcie";
 
+			phys = <&pcie2_phy>;
+			phy-names = "pciephy";
 			dma-coherent;
 
 			status = "disabled";
 
-			pcie2_port0: pcie@0 {
+			pcie@0 {
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
@@ -2150,8 +2152,6 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
-
-				phys = <&pcie2_phy>;
 			};
 		};
 
