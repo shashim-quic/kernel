@@ -27,7 +27,6 @@ properties:
       - qcom,msm8226-rpm-stats
       - qcom,msm8916-rpm-stats
       - qcom,msm8974-rpm-stats
-      - qcom,shikra-rpm-stats
 
   reg:
     maxItems: 1
