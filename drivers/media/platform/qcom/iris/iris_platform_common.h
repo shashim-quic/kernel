@@ -317,7 +317,6 @@ struct iris_platform_data {
 	u32 num_vpp_pipe;
 	bool no_aon;
 	bool no_rpmh;
-	u32 wd_intr_mask;
 	u32 max_session_count;
 	u32 num_cores;
 	/* max number of macroblocks per frame supported */
