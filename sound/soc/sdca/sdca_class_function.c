@@ -329,14 +329,7 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	drv->core = core;
 	drv->function = &sdev->function;
 
-	if (core->ops && core->ops->populate_function) {
-		ret = core->ops->populate_function(core->sdw, drv->function);
-	} else if (drv->function->desc->node) {
-		ret = sdca_parse_function(dev, drv->function);
-	} else {
-		dev_err(dev, "no firmware node and no populate_function hook\n");
-		return -ENOENT;
-	}
+	ret = sdca_parse_function(dev, drv->function);
 	if (ret)
 		return ret;
 
