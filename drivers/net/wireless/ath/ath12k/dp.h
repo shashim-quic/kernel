@@ -249,6 +249,10 @@ struct ath12k_pdev_dp {
 #define ATH12K_SHADOW_DP_TIMER_INTERVAL 20
 #define ATH12K_SHADOW_CTRL_TIMER_INTERVAL 10
 
+/* TODO: revisit this count during testing */
+#define ATH12K_RX_DESC_COUNT(ab) \
+	((ab)->profile_param->dp_params.rx_desc_count)
+
 #define ATH12K_PAGE_SIZE	PAGE_SIZE
 
 /* Total 1024 entries in PPT, i.e 4K/4 considering 4K aligned
@@ -259,7 +263,15 @@ struct ath12k_pdev_dp {
 /* Total 512 entries in a SPT, i.e 4K Page/8 */
 #define ATH12K_MAX_SPT_ENTRIES	512
 
+#define ATH12K_NUM_RX_SPT_PAGES(ab)	((ATH12K_RX_DESC_COUNT(ab)) / \
+					  ATH12K_MAX_SPT_ENTRIES)
+
 #define ATH12K_TX_SPT_PAGE_OFFSET 0
+
+/* The SPT pages are divided for RX and TX, first block for RX
+ * and remaining for TX
+ */
+#define ATH12K_NUM_TX_SPT_PAGE_START(ab) ATH12K_NUM_RX_SPT_PAGES(ab)
 
 #define ATH12K_DP_RX_DESC_MAGIC	0xBABABABA
 
@@ -702,18 +714,6 @@ static inline u32
 ath12k_dp_rx_spt_page_offset(const struct ath12k_dp_profile_params *p)
 {
 	return ath12k_dp_num_tx_spt_pages(p);
-}
-
-static inline u32
-ath12k_dp_rx_desc_count(const struct ath12k_dp_profile_params *p)
-{
-	return p->rx_desc_count;
-}
-
-static inline u32
-ath12k_dp_num_rx_spt_pages(const struct ath12k_dp_profile_params *p)
-{
-	return ath12k_dp_rx_desc_count(p) / ATH12K_MAX_SPT_ENTRIES;
 }
 
 void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
