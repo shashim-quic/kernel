@@ -1835,7 +1835,7 @@ static int a6xx_gmu_rpmh_dep_votes_init(struct device *dev, u32 *votes,
 	/* Construct a vote for rest of the corners */
 	for (int i = 1; i < freqs_count; i++) {
 		unsigned int level = a6xx_gmu_get_arc_level(dev, freqs[i]);
-		int index = a6xx_gmu_rpmh_arc_index(dev, mx, count, level, true);
+		int index = a6xx_gmu_rpmh_arc_index(dev, mx, count, level, false);
 		int bx;
 
 		if (index < 0)
