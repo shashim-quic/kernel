@@ -16,7 +16,6 @@ select:
       contains:
         enum:
           - qcom,eliza-ufshc
-          - qcom,glymur-ufshc
           - qcom,hawi-ufshc
           - qcom,kaanapali-ufshc
           - qcom,maili-ufshc
@@ -31,7 +30,6 @@ properties:
     items:
       - enum:
           - qcom,eliza-ufshc
-          - qcom,glymur-ufshc
           - qcom,hawi-ufshc
           - qcom,kaanapali-ufshc
           - qcom,maili-ufshc
@@ -82,7 +80,6 @@ allOf:
           contains:
             enum:
               - qcom,eliza-ufshc
-              - qcom,glymur-ufshc
               - qcom,maili-ufshc
               - qcom,nord-ufshc
     then:
