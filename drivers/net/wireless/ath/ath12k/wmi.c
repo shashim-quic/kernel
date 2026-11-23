@@ -6975,14 +6975,6 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 		goto mem_free;
 	}
 
-	/*
-	 * Set the valid pdev_idx before validating so that, even when the
-	 * event is dropped or falls back, the completion the caller in
-	 * ath12k_mac_hw_register() may be waiting on is still signalled at
-	 * the end and it does not time out.
-	 */
-	pdev_idx = reg_info->phy_id;
-
 	ret = ath12k_reg_validate_reg_info(ab, reg_info);
 	if (ret == ATH12K_REG_STATUS_FALLBACK) {
 		ath12k_warn(ab, "failed to validate reg info %d\n", ret);
@@ -6999,6 +6991,7 @@ static int ath12k_reg_chan_list_event(struct ath12k_base *ab, struct sk_buff *sk
 	}
 
 	/* free old reg_info if it exist */
+	pdev_idx = reg_info->phy_id;
 	if (ab->reg_info[pdev_idx]) {
 		ath12k_reg_reset_reg_info(ab->reg_info[pdev_idx]);
 		kfree(ab->reg_info[pdev_idx]);
@@ -7037,7 +7030,7 @@ fallback:
 
 out:
 	/* In some error cases, even a valid pdev_idx might not be available */
-	if (pdev_idx < ab->num_radios)
+	if (pdev_idx != 255)
 		ar = ab->pdevs[pdev_idx].ar;
 
 	/* During the boot-time update, 'ar' might not be allocated,
