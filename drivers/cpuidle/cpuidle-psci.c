@@ -479,4 +479,4 @@ static int __init psci_idle_init(void)
 
 	return 0;
 }
-subsys_initcall(psci_idle_init);
+device_initcall(psci_idle_init);
