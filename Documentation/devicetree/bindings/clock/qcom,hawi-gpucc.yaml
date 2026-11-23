@@ -17,9 +17,7 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,hawi-gpucc
-      - qcom,maili-gpucc
+    const: qcom,hawi-gpucc
 
   clocks:
     items:
