@@ -1072,14 +1072,6 @@
 	status = "okay";
 };
 
-&gpu {
-	status = "okay";
-};
-
-&gpu_zap_shader {
-	firmware-name = "qcom/kaanapali/gen80200_zap.mbn";
-};
-
 &i2c3 {
 	status = "okay";
 
