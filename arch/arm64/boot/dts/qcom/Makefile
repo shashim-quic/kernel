@@ -218,7 +218,6 @@ dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride-embedded.dtb
 nord-ride-embedded-el2-dtbs	:= nord-ride-embedded.dtb nord-embedded-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= nord-ride-embedded-el2.dtb
 
-dtb-$(CONFIG_ARCH_QCOM)	+= nord-rrd.dtb
 
 nord-rrd-el2-dtbs	:= nord-rrd.dtb nord-embedded-el2.dtbo
 dtb-$(CONFIG_ARCH_QCOM)	+= nord-rrd-el2.dtb
