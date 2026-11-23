@@ -27,7 +27,6 @@ struct vpu_ops {
 	int (*set_hwmode)(struct iris_core *core);
 	void (*set_preset_registers)(struct iris_core *core);
 	void (*interrupt_init)(struct iris_core *core);
-	void (*disable_arp)(struct iris_core *core);
 	int (*init_cb_devs)(struct iris_core *core);
 	void (*deinit_cb_devs)(struct iris_core *core);
 	int (*check_core_load)(struct iris_inst *inst, bool mbpf);
