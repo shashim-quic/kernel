@@ -39,7 +39,6 @@ const struct vpu_ops iris_vpu2_ops = {
 	.power_on_controller = iris_vpu_power_on_controller,
 	.calc_freq = iris_vpu2_calculate_frequency,
 	.set_hwmode = iris_vpu_set_hwmode,
-	.interrupt_init = iris_vpu_interrupt_init,
 	.init_cb_devs = iris_vpu2_init_cb_devs,
 	.deinit_cb_devs = iris_vpu2_deinit_cb_devs,
 };

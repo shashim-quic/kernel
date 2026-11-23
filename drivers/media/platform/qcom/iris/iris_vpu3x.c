@@ -452,7 +452,6 @@ const struct vpu_ops iris_vpu3_ops = {
 	.power_on_controller = iris_vpu_power_on_controller,
 	.calc_freq = iris_vpu3x_vpu4x_calculate_frequency,
 	.set_hwmode = iris_vpu_set_hwmode,
-	.interrupt_init = iris_vpu_interrupt_init,
 	.init_cb_devs = iris_vpu3x_init_cb_devs,
 	.deinit_cb_devs = iris_vpu3x_deinit_cb_devs,
 };
@@ -464,7 +463,6 @@ const struct vpu_ops iris_vpu33_ops = {
 	.power_on_controller = iris_vpu_power_on_controller,
 	.calc_freq = iris_vpu3x_vpu4x_calculate_frequency,
 	.set_hwmode = iris_vpu_set_hwmode,
-	.interrupt_init = iris_vpu_interrupt_init,
 	.init_cb_devs = iris_vpu3x_init_cb_devs,
 	.deinit_cb_devs = iris_vpu3x_deinit_cb_devs,
 };
@@ -477,7 +475,6 @@ const struct vpu_ops iris_vpu35_ops = {
 	.program_bootup_registers = iris_vpu35_vpu4x_program_bootup_registers,
 	.calc_freq = iris_vpu3x_vpu4x_calculate_frequency,
 	.set_hwmode = iris_vpu_set_hwmode,
-	.interrupt_init = iris_vpu_interrupt_init,
 };
 
 const struct vpu_ops iris_vpu36_ops = {

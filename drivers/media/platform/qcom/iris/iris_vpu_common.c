@@ -31,7 +31,7 @@
 #define UC_REGION_ADDR				(CPU_CS_BASE_OFFS + 0x64)
 #define UC_REGION_SIZE				(CPU_CS_BASE_OFFS + 0x68)
 
-void iris_vpu_interrupt_init(struct iris_core *core)
+static void iris_vpu_interrupt_init(struct iris_core *core)
 {
 	u32 mask_val;
 
@@ -460,7 +460,7 @@ int iris_vpu_power_on(struct iris_core *core)
 
 	iris_vpu_set_preset_registers(core);
 
-	core->iris_platform_data->vpu_ops->interrupt_init(core);
+	iris_vpu_interrupt_init(core);
 	core->intr_status = 0;
 	enable_irq(core->irq);
 

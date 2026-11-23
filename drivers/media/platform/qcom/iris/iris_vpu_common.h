@@ -25,7 +25,6 @@ struct vpu_ops {
 	void (*program_bootup_registers)(struct iris_core *core);
 	u64 (*calc_freq)(struct iris_inst *inst, size_t data_size);
 	int (*set_hwmode)(struct iris_core *core);
-	void (*interrupt_init)(struct iris_core *core);
 	int (*init_cb_devs)(struct iris_core *core);
 	void (*deinit_cb_devs)(struct iris_core *core);
 	int (*check_core_load)(struct iris_inst *inst, bool mbpf);
@@ -56,6 +55,5 @@ void iris_vpu_ahb_sync_reset_apv(struct iris_core *core);
 void iris_vpu_ahb_sync_reset_hardware(struct iris_core *core);
 
 void iris_vpu_set_preset_registers(struct iris_core *core);
-void iris_vpu_interrupt_init(struct iris_core *core);
 
 #endif
