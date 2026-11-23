@@ -2285,11 +2285,6 @@
 				pinctrl-names = "default";
 
 				status = "disabled";
-
-				port {
-					uart14_ep: endpoint {
-					};
-				};
 			};
 
 			i2c15: i2c@a9c000 {
@@ -4050,11 +4045,6 @@
 				#address-cells = <3>;
 				#size-cells = <2>;
 				ranges;
-
-				port {
-					pcie4_port0_ep: endpoint {
-					};
-				};
 			};
 		};
 
