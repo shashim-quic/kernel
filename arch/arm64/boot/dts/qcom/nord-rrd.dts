@@ -946,10 +946,6 @@
 	status = "okay";
 };
 
-&remoteproc_soccp {
-	firmware-name = "qcom/nord/soccp.mbn";
-};
-
 &uart4 {
 	status = "okay";
 };
